@@ -94,23 +94,38 @@ features = train.drop('Survived', axis=1)
 labels = train.Survived
 n_components = len(features.columns)
 
-
 # Build network
 import numpy as np
 from keras.models import Sequential
-from keras.layers import Dense, Dropout
+from keras.layers import Dense, Dropout, Activation
 from keras.optimizers import SGD, Adamax
 from keras.constraints import maxnorm
-def create_model(learn_rate=0.001, beta_1=0.9, beta_2=0.999, momentum=0, dropout_rate=0.0, weight_constraint=0):
-	model = Sequential()
-	model.add(Dense(n_components, activation='relu', input_shape=(n_components,)))#, kernel_constraint=maxnorm(weight_constraint)))
-	model.add(Dropout(dropout_rate))
-	model.add(Dense(n_components*2, activation='relu'))
-	model.add(Dense(n_components*3, activation='relu'))
-	model.add(Dense(2, activation='softmax'))
-	# model.compile(optimizer=SGD(lr=learn_rate, momentum=momentum), loss='categorical_crossentropy', metrics=['accuracy'])
-	model.compile(optimizer=Adamax(lr=learn_rate, beta_1=beta_1, beta_2=beta_2), loss='categorical_crossentropy', metrics=['accuracy'])
-	return model
+def create_model(learn_rate=0.001, beta_1=0.9, beta_2=0.999):
+  model = Sequential()
+  #
+  model.add(Dense(100, input_shape=(n_components,)))
+  model.add(Dropout(0.5))
+  model.add(Activation('relu'))
+  #
+  model.add(Dense(50))
+  model.add(Dropout(0.5))
+  model.add(Activation('relu'))
+  #
+  model.add(Dense(20))
+  model.add(Dropout(0.5))
+  model.add(Activation('relu'))
+  #
+  model.add(Dense(2))
+  model.add(Activation('softmax'))
+
+  # model.add(Dense(n_components, activation='relu', input_shape=(n_components,)))#, kernel_constraint=maxnorm(weight_constraint)))
+  # model.add(Dropout(dropout_rate))
+  # model.add(Dense(n_components*2, activation='relu'))
+  # model.add(Dense(n_components*3, activation='relu'))
+  # model.add(Dense(2, activation='softmax'))
+  # model.compile(optimizer=SGD(lr=learn_rate, momentum=momentum), loss='categorical_crossentropy', metrics=['accuracy'])
+  model.compile(optimizer=Adamax(lr=learn_rate, beta_1=beta_1, beta_2=beta_2), loss='categorical_crossentropy', metrics=['accuracy'])
+  return model
 
 # Refine model.
 from keras.wrappers.scikit_learn import KerasClassifier
@@ -119,31 +134,42 @@ model_wrap = KerasClassifier(build_fn=create_model)
 params = {
   'validation_split': [0.2],
   'epochs': [50],
-  #'optimizer': ['SGD', 'RMSprop', 'Adagrad', 'Adadelta', 'Adam', 'Adamax', 'Nadam'],
-  'learn_rate': np.linspace(0.001, 1, 50), #[0.001, 0.01, 0.1, 0.2, 0.3],
-	'beta_1': np.linspace(0.8, 1.0, 10),
-	'beta_2': np.linspace(0.8, 1.0, 10),
-  # 'momentum': np.linspace(0.0, 1.0, 10), #[0.0, 0.2, 0.4, 0.6, 0.8, 0.9],
-  'dropout_rate': np.linspace(0.0, 1.0, 10),#[0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9],
-  'weight_constraint': [0, 1, 2, 3, 4, 5]
+  'learn_rate': np.linspace(0.001, 1, 50)
 }
 cv = RandomizedSearchCV(
-	estimator=model_wrap,
-	param_distributions=params,
-	cv=3,
-	n_iter=50,
-	n_jobs=-1
+  estimator=model_wrap,
+  param_distributions=params,
+  cv=3,
+  n_iter=50,
+  n_jobs=-1
 )
 # cv_results = cv.fit(features, labels)
 # print('Score: {} / {}'.format(cv.best_score_, cv.best_params_))
 # best_model = cv.best_estimator_.model
+#
 # import matplotlib.pyplot as plt
-# plt.plot(best_model.history.history['loss'], label='loss')
-# plt.plot(best_model.history.history['val_loss'], label='val loss')
+# loss = best_model.history.history['loss']
+# val_loss = best_model.history.history['val_loss']
+# epochs = range(1, len(loss)+1)
+# plt.plot(epochs, loss, 'y', label='Training loss')
+# plt.plot(epochs, val_loss, 'r', label='Validation loss')
+# plt.title('Training and validation loss')
+# plt.xlabel('Epochs')
+# plt.ylabel('Loss')
+# plt.legend()
+# plt.show()
+#
+# acc = best_model.history.history['acc']
+# val_acc = best_model.history.history['val_acc']
+# plt.plot(epochs, acc, 'y', label='Training accuracy')
+# plt.plot(epochs, val_acc, 'r', label='Validation accuracy')
+# plt.title('Training and validation accuracy')
+# plt.xlabel('Epochs')
+# plt.ylabel('Accuracy')
 # plt.legend()
 # plt.show()
 
-import sys
+# import sys
 # sys.exit()
 
 # Score: 0.8170594841275285 / {'weight_constraint': 3, 'validation_split': 0.2, 'learn_rate': 0.2, 'epochs': 80, 'dropout_rate': 0.3}
@@ -153,16 +179,34 @@ import sys
 
 from keras.callbacks import EarlyStopping
 callbacks = [
-    EarlyStopping(monitor='val_loss', patience=10),
+    EarlyStopping(monitor='val_loss', patience=30),
 ]
 
 from keras.utils import to_categorical
 # model = create_model(0.6326567346938775, 0.1111111111111111, 0.1111111111111111, 3)
-model = create_model(learn_rate=0.02138, beta_1=0.999, beta_2=1.0, dropout_rate=0.3)
+#0.08255102040816327
+model = create_model(learn_rate=0.001)
 history = model.fit(features, to_categorical(labels), validation_split=0.25, epochs=300, callbacks=callbacks)
+#
 import matplotlib.pyplot as plt
-plt.plot(history.history['loss'], label='loss')
-plt.plot(history.history['val_loss'], label='val loss')
+loss = history.history['loss']
+val_loss = history.history['val_loss']
+epochs = range(1, len(loss)+1)
+plt.plot(epochs, loss, 'y', label='Training loss')
+plt.plot(epochs, val_loss, 'r', label='Validation loss')
+plt.title('Training and validation loss')
+plt.xlabel('Epochs')
+plt.ylabel('Loss')
+plt.legend()
+plt.show()
+#
+acc = history.history['acc']
+val_acc = history.history['val_acc']
+plt.plot(epochs, acc, 'y', label='Training accuracy')
+plt.plot(epochs, val_acc, 'r', label='Validation accuracy')
+plt.title('Training and validation accuracy')
+plt.xlabel('Epochs')
+plt.ylabel('Accuracy')
 plt.legend()
 plt.show()
 
